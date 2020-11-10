@@ -52,9 +52,14 @@ class SettingsDialog(SettingsDialog):
 
 
 class Camera(CameraDialog):
-    """Camera"""
+    """Camera
 
-    def __init__(self, parent, cameraId=0):
+    Args:
+        parent: parent window
+        cameraId: camera id(if multiple camera available)
+        camera_refresh: refresh preview timeout(milisecond)"""
+
+    def __init__(self, parent, cameraId=0, camera_refresh=50):
         super().__init__(parent)
         self.camera = VideoCapture(0)
         if not self.camera.isOpened():
@@ -88,7 +93,7 @@ class Camera(CameraDialog):
 
         self.preview_timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.on_preview_timer, self.preview_timer)
-        self.preview_timer.Start(50)
+        self.preview_timer.Start(camera_refresh)
 
         self.previewDc = wx.ClientDC(self.m_panel_preview)
 
