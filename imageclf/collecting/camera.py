@@ -136,32 +136,36 @@ class Camera(CameraDialog):
 
     def on_preview_timer(self, event):
         # logger.info("refesh")
-        width, height = self.m_panel_preview.GetClientSize()
+        cl_width, cl_height = self.m_panel_preview.GetClientSize()
         buffDc = wx.BufferedDC(self.previewDc)
         ret, frame = self.camera.read()
         frame = cvtColor(frame, COLOR_BGR2RGB)
-        frame = resize(frame, (width, height))
         im_height, im_width = frame.shape[:2]
 
-        # TODO: fix this later
-        def fit_image(imw, imh, clw, clh):
-            imratio = imw/imh
-            clratio = clw/clh
-            potrait = imw < imh
-            if potrait:
-                pass
-            else:
-                if imratio < clratio:
-                    nwidth = clw
-                    nheight = imh * clw / imw
-                else:
-                    nheight = clh
-                    nwidth = imw * clh / imh
-            return nwidth, nheight
+        def scale(x1, x2, y2): return x1 * y2/x2
 
+        def fit_image(imw, imh, clw, clh):
+            if clw < clh:
+                nwidth = clw
+                nheight = scale(clw, imw, imh)
+                if nheight > clh:
+                    nwidth = scale(clh, nheight, nwidth)
+                    nheight = clh
+            else:
+                nheight = clh
+                nwidth = scale(clh, imh, imw)
+                if nwidth > clw:
+                    nheight = scale(clw, nwidth, nheight)
+                    nwidth = clw
+            return int(nwidth), int(nheight)
+        width, height = fit_image(im_width, im_height, cl_width, cl_height)
+
+        frame = resize(frame, (width, height))
         image = wx.Image()
         image.SetDataBuffer(frame, width, height)
-        buffDc.DrawBitmap(image.ConvertToBitmap(), 0, 0)
+        xpos = int((cl_width - width)/2)
+        ypos = int((cl_height-height)/2)
+        buffDc.DrawBitmap(image.ConvertToBitmap(), xpos, ypos)
 
     def on_capture_timer(self, event):
         logger.info("capture Timer")
