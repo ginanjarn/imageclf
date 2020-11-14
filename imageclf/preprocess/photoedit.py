@@ -4,47 +4,102 @@ import os
 import math
 from pathlib import Path
 
+"""Drawing object"""
+DRAW_POINT = wx.ID_ANY
+DRAW_BITMAP = wx.ID_ANY
+DRAW_LINE = wx.ID_ANY
+DRAW_RECTANGLE = wx.ID_ANY
+DRAW_CIRCLE = wx.ID_ANY
+DRAW_ELLIPSE = wx.ID_ANY
+
+def calculate_size(pt1:wx.Point, pt2:wx.Point):
+	return wx.Size(pt2.x-pt1.x,pt2.y-pt1.y)
+
+def calculate_radius(pt1:wx.Point, pt2:wx.Point):
+	return math.sqrt(math.pow(pt2.x-pt1.x)+math.pow(pt2.y-pt1.y))
+
+def calculate_rect(pt1:wx.Point, pt2:wx.Point):
+	return wx.Rect(pt1,calculate_size(pt1,pt2))
+
 class DrawingObject:
-	def __init__(self, dc):
-		# self.dc = wx.PaintDC(self)
-		self.dc = dc
+	def __init__(self):
+		self.temp_object = None
 		self.objects = []
 
-	def Realize(self):
-		for obj in self.objects:
-			obj
+	def add_point(self, point1: wx.Point, preview=False):
+		obj = {"name": DRAW_LINE, "point1": point1}
+		if not preview:
+			self.objects.append(obj)
+		else:
+			self.temp_object = obj
 
-	def add_bitmap(self,point,bitmap):
-		self.objects.append(self.dc.DrawBitmap(bitmap,point))
+	def add_line(self, point1: wx.Point, point2: wx.Point, preview=False):
+		obj = {"name": DRAW_LINE, "point1": point1, "point2": point2}
+		if not preview:
+			self.objects.append(obj)
+		else:
+			self.temp_object = obj
 
-	def add_circle(self, point1: wx.Point, point2: wx.Point):
-		radius = math.sqrt(math.pow(point2.x-point1.x)+math.pow(point2.y-point1.y))
-		self.objects.append(self.dc.DrawCircle(point1,radius))
+	def add_bitmap(self, point1: wx.Point, bitmap: wx.Bitmap, preview=False):
+		obj = {"name": DRAW_BITMAP, "point1": point1}
+		if not preview:
+			self.objects.append(obj)
+		else:
+			self.temp_object = obj
+
+	def add_rect(self, point1: wx.Point, point2: wx.Point, preview=False):
+		w = point2.x - point1.x
+		h = point2.y - point1.y
+		obj = {"name": DRAW_RECTANGLE, "point1": point1, "size": wx.Size(w, h)}
+		if not preview:
+			self.objects.append(obj)
+		else:
+			self.temp_object = obj
+
+	def add_circle(self, point1: wx.Point, point2: wx.Point, preview=False):
+		w = point2.x - point1.x
+		h = point2.y - point1.y
+		r = math.sqrt(math.pow(w)+math.pow(h))
+		obj = {"name": DRAW_CIRCLE, "point1": point1, "radius": r}
+		if not preview:
+			self.objects.append(obj)
+		else:
+			self.temp_object = obj
+
+	def add_ellipse(self, point1: wx.Point, point2: wx.Point, preview=False):
+		w = point2.x - point1.x
+		h = point2.y - point1.y
+		obj = {"name": DRAW_ELLIPSE, "point1": point1, "size": wx.Size(w, h)}
+		if not preview:
+			self.objects.append(obj)
+		else:
+			self.temp_object = obj
+
 
 class Main(MainFrame):
 	def __init__(self, parent):
 		super().__init__(parent)
 		self.m_genericDirCtrl_filebrowser.SetDefaultPath(os.getcwd())
 		self.m_genericDirCtrl_filebrowser.ReCreateTree()
-		self.Bind(wx.EVT_DIRCTRL_SELECTIONCHANGED,self.on_dirctrl_select_change)
+		self.Bind(wx.EVT_DIRCTRL_SELECTIONCHANGED,
+				  self.on_dirctrl_select_change)
 
-# ----------------------------------------------------------------------
 		self.paint_dc = None
 		self.point1: wx.Point = None
 		self.point2: wx.Point = None
+		self.Draw = False
 
 		self.src_point1: wx.Point = None
 		self.src_point2: wx.Point = None
 
-		self.on_edit = False
+		self.drawing_object = DrawingObject()
 
 		self.image = wx.Image()
 		self.m_scrolledWindow_image.Bind(wx.EVT_PAINT, self.on_paint)
-# ----------------------------------------------------------------------
+
 		self.init_menu()
 		self.init_toolbar()
 		self.init_drawing()
-# ---------------------------------------------------------------------
 
 
 	def init_menu(self):
@@ -72,66 +127,73 @@ class Main(MainFrame):
 		self.m_scrolledWindow_image.Bind(wx.EVT_LEFT_UP, self.on_left_up)
 		self.m_scrolledWindow_image.Bind(wx.EVT_MOTION, self.on_motion)
 
-# ----------------------------------------------------------------------
-
-	def on_dirctrl_select_change(self, event):
-		filepath = self.m_genericDirCtrl_filebrowser.GetPath()
-		if os.path.isfile(filepath):
-			if self.image.CanRead(filepath):
-				self.image.LoadFile(filepath, wx.BITMAP_TYPE_ANY)
+	def open_image(self,path):
+		if os.path.isfile(path):
+			if self.image.CanRead(path):
+				self.image.LoadFile(path, wx.BITMAP_TYPE_ANY)
 				imw, imh = self.image.GetSize()
 				self.m_scrolledWindow_image.SetVirtualSize(imw, imh)
 				self.m_scrolledWindow_image.Refresh()
-				
+
+
+	def on_dirctrl_select_change(self, event):
+		filepath = self.m_genericDirCtrl_filebrowser.GetPath()
+		self.open_image(filepath)
+
 	def on_paint(self, event):
-		if self.image.IsOk():
-			dc = wx.PaintDC(self.m_scrolledWindow_image)
-			self.paint_dc = dc
-			self.m_scrolledWindow_image.PrepareDC(dc)
-			dc.DrawBitmap(self.image.ConvertToBitmap(), 0, 0)
+		if not self.image.IsOk():
+			return
 
-			if self.on_edit:
-			if self.point1:
-				dc.DrawLine(self.point1,self.point2)
+		dc = wx.PaintDC(self.m_scrolledWindow_image)
+		self.paint_dc = dc
+		self.m_scrolledWindow_image.PrepareDC(dc)
+		dc.DrawBitmap(self.image.ConvertToBitmap(), 0, 0)
+		if not self.Draw:
+			return
+		dc.DrawLine(self.point1,self.point2)
+		# self.DrawObject(dc)	
 
-			# self.point1 = self.point2 = None
 
 
-	def get_cursor_position(self, event):
+	def get_logical_position(self, event):
 		if self.paint_dc:
 			return event.GetLogicalPosition(self.paint_dc)
 		else:
 			return None
 
-
 	def on_left_down(self, event):
-		pos = self.get_cursor_position(event)
-		if pos:
-			# print(pos)
-			self.point1 = pos
-			self.src_point1 = event.GetPosition()
-			self.on_edit = True
+		self.src_point1 = event.GetPosition()
+		pos = self.get_logical_position(event)
+		if not pos:
+			return
+		self.point1 = pos
+		self.Draw = True
+
 
 	def on_left_up(self, event):
-		pos = self.get_cursor_position(event)
-		if pos:
-			self.point2 = pos
-			self.src_point2 = event.GetPosition()
-			rect = wx.Rect(self.src_point1.x,self.src_point1.y,
-				self.src_point2.x-self.src_point1.x,self.src_point2.y-self.src_point1.y)
-			self.on_edit = False
-			self.m_scrolledWindow_image.RefreshRect(rect)	
+		self.src_point2 = event.GetPosition()
+		pos = self.get_logical_position(event)
+		if not pos:
+			return
+		self.point2 = pos
+		rect = calculate_rect(self.src_point1,self.src_point2)
+		self.drawing_object.add_line(point1=self.point1,point2=self.point2)
+		self.m_scrolledWindow_image.RefreshRect(rect)
+		self.Draw = False
+
 
 	def on_motion(self, event):
-		pos = self.get_cursor_position(event)
-		if pos:
-			# print(pos)
-			self.point2 = pos
-			if self.point1 and self.on_edit:
-				self.src_point2 = event.GetPosition()
-				rect = wx.Rect(self.src_point1.x,self.src_point1.y,
-					self.src_point2.x-self.src_point1.x,self.src_point2.y-self.src_point1.y)
-				self.m_scrolledWindow_image.RefreshRect(rect)	
+		self.src_point2 = event.GetPosition()
+		pos = self.get_logical_position(event)
+		if not pos:
+			return
+		self.point2 = pos
+		if not self.Draw:
+			return
+		self.drawing_object.add_line(point1=self.point1,point2=self.point2,preview=True)
+		if self.point1:
+			rect = calculate_rect(self.src_point1,self.src_point2)
+			self.m_scrolledWindow_image.RefreshRect(rect)
 
 	def on_close(self, event):
 		self.Destroy()
@@ -143,14 +205,8 @@ class Main(MainFrame):
 						   style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST)
 		if fd.ShowModal() == wx.ID_OK:
 			filepath = fd.GetPath()
-			if self.image.CanRead(filepath):
-				self.image.LoadFile(filepath, wx.BITMAP_TYPE_ANY)
-
-				imw, imh = self.image.GetSize()
-				self.m_scrolledWindow_image.SetVirtualSize(imw, imh)
-
-				self.m_scrolledWindow_image.Refresh()
-
+			self.open_image(filepath)
+			
 	def on_save(self, event):
 		pass
 
