@@ -127,6 +127,10 @@ class Main(MainFrame):
 		self.m_scrolledWindow_image.Bind(wx.EVT_LEFT_UP, self.on_left_up)
 		self.m_scrolledWindow_image.Bind(wx.EVT_MOTION, self.on_motion)
 
+		self.line_stock = []
+		self.line_stock.append((wx.Point(12,10),wx.Point(70,100)))
+		self.line_stock.append((wx.Point(120,10),wx.Point(70,40)))
+
 	def open_image(self,path):
 		if os.path.isfile(path):
 			if self.image.CanRead(path):
@@ -148,6 +152,11 @@ class Main(MainFrame):
 		self.paint_dc = dc
 		self.m_scrolledWindow_image.PrepareDC(dc)
 		dc.DrawBitmap(self.image.ConvertToBitmap(), 0, 0)
+		# dc.DrawLine(wx.Point(12,10),wx.Point(70,100))
+		# dc.DrawLine(wx.Point(120,10),wx.Point(670,100))
+		for line in self.line_stock:
+			dc.DrawLine(line[0],line[1])
+
 		if not self.Draw:
 			return
 		dc.DrawLine(self.point1,self.point2)
@@ -177,8 +186,11 @@ class Main(MainFrame):
 			return
 		self.point2 = pos
 		rect = calculate_rect(self.src_point1,self.src_point2)
-		self.drawing_object.add_line(point1=self.point1,point2=self.point2)
-		self.m_scrolledWindow_image.RefreshRect(rect)
+		self.line_stock.append((self.point1,self.point2))
+		# self.drawing_object.add_line(point1=self.point1,point2=self.point2)
+		w,h = self.m_scrolledWindow_image.GetSize()
+		self.m_scrolledWindow_image.RefreshRect(wx.Rect(0,0,w,h))
+		# self.m_scrolledWindow_image.Refresh()
 		self.Draw = False
 
 
@@ -199,7 +211,6 @@ class Main(MainFrame):
 		self.Destroy()
 
 	def on_open(self, event):
-		# pass
 		wildcard = self.image.GetImageExtWildcard()
 		fd = wx.FileDialog(self, wildcard=wildcard,
 						   style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST)
