@@ -12,14 +12,26 @@ DRAW_RECTANGLE = wx.ID_ANY
 DRAW_CIRCLE = wx.ID_ANY
 DRAW_ELLIPSE = wx.ID_ANY
 
-def calculate_size(pt1:wx.Point, pt2:wx.Point):
-	return wx.Size(pt2.x-pt1.x,pt2.y-pt1.y)
 
-def calculate_radius(pt1:wx.Point, pt2:wx.Point):
+def calculate_size(pt1: wx.Point, pt2: wx.Point):
+	return wx.Size(pt2.x-pt1.x, pt2.y-pt1.y)
+
+
+def calculate_radius(pt1: wx.Point, pt2: wx.Point):
 	return math.sqrt(math.pow(pt2.x-pt1.x)+math.pow(pt2.y-pt1.y))
 
-def calculate_rect(pt1:wx.Point, pt2:wx.Point):
-	return wx.Rect(pt1,calculate_size(pt1,pt2))
+
+def calculate_rect(pt1: wx.Point, pt2: wx.Point):
+	return wx.Rect(pt1, calculate_size(pt1, pt2))
+
+
+def calculate_ext_rect(pt1: wx.Point, pt2: wx.Point, padding=20):
+	xmin, xmax = min(pt1.x, pt2.x), max(pt1.x, pt2.x)
+	ymin, ymax = min(pt1.y, pt2.y), max(pt1.y, pt2.y)
+	x, y = xmin-padding, ymin-padding
+	w,h = xmax+padding-x,ymax+padding-y
+	return wx.Rect(wx.Point(x,y),wx.Size(w,h))
+
 
 class DrawingObject:
 	def __init__(self):
@@ -95,12 +107,12 @@ class Main(MainFrame):
 		self.drawing_object = DrawingObject()
 
 		self.image = wx.Image()
+		self.image_bitmap = None
 		self.m_scrolledWindow_image.Bind(wx.EVT_PAINT, self.on_paint)
 
 		self.init_menu()
 		self.init_toolbar()
 		self.init_drawing()
-
 
 	def init_menu(self):
 		self.Bind(wx.EVT_MENU, self.on_open, self.m_menuItem_open)
@@ -128,41 +140,48 @@ class Main(MainFrame):
 		self.m_scrolledWindow_image.Bind(wx.EVT_MOTION, self.on_motion)
 
 		self.line_stock = []
-		self.line_stock.append((wx.Point(12,10),wx.Point(70,100)))
-		self.line_stock.append((wx.Point(120,10),wx.Point(70,40)))
+		self.line_stock.append((wx.Point(12, 10), wx.Point(70, 100)))
+		self.line_stock.append((wx.Point(120, 10), wx.Point(70, 40)))
 
-	def open_image(self,path):
+		self.paint_timer = wx.Timer(self)
+		self.Bind(wx.EVT_TIMER,self.on_update_timer ,self.paint_timer)
+
+	def on_update_timer(self,event):
+		rect = calculate_ext_rect(self.src_point1, self.src_point2)
+		self.m_scrolledWindow_image.RefreshRect(rect)
+
+	def open_image(self, path):
 		if os.path.isfile(path):
 			if self.image.CanRead(path):
 				self.image.LoadFile(path, wx.BITMAP_TYPE_ANY)
+				self.image_bitmap = self.image.ConvertToBitmap()
 				imw, imh = self.image.GetSize()
 				self.m_scrolledWindow_image.SetVirtualSize(imw, imh)
 				self.m_scrolledWindow_image.Refresh()
-
 
 	def on_dirctrl_select_change(self, event):
 		filepath = self.m_genericDirCtrl_filebrowser.GetPath()
 		self.open_image(filepath)
 
 	def on_paint(self, event):
-		if not self.image.IsOk():
+		if not self.image_bitmap:
 			return
 
 		dc = wx.PaintDC(self.m_scrolledWindow_image)
+		if not dc.IsOk():
+			return
 		self.paint_dc = dc
 		self.m_scrolledWindow_image.PrepareDC(dc)
-		dc.DrawBitmap(self.image.ConvertToBitmap(), 0, 0)
+		dc.DrawBitmap(self.image_bitmap, 0, 0)
 		# dc.DrawLine(wx.Point(12,10),wx.Point(70,100))
 		# dc.DrawLine(wx.Point(120,10),wx.Point(670,100))
 		for line in self.line_stock:
-			dc.DrawLine(line[0],line[1])
+			dc.DrawLine(line[0], line[1])
 
 		if not self.Draw:
 			return
-		dc.DrawLine(self.point1,self.point2)
-		# self.DrawObject(dc)	
-
-
+		dc.DrawLine(self.point1, self.point2)
+		# self.DrawObject(dc)
 
 	def get_logical_position(self, event):
 		if self.paint_dc:
@@ -177,7 +196,7 @@ class Main(MainFrame):
 			return
 		self.point1 = pos
 		self.Draw = True
-
+		self.paint_timer.Start(20)
 
 	def on_left_up(self, event):
 		self.src_point2 = event.GetPosition()
@@ -185,14 +204,14 @@ class Main(MainFrame):
 		if not pos:
 			return
 		self.point2 = pos
-		rect = calculate_rect(self.src_point1,self.src_point2)
-		self.line_stock.append((self.point1,self.point2))
+		rect = calculate_rect(self.src_point1, self.src_point2)
+		self.line_stock.append((self.point1, self.point2))
 		# self.drawing_object.add_line(point1=self.point1,point2=self.point2)
-		w,h = self.m_scrolledWindow_image.GetSize()
-		self.m_scrolledWindow_image.RefreshRect(wx.Rect(0,0,w,h))
+		# w, h = self.m_scrolledWindow_image.GetSize()
+		# self.m_scrolledWindow_image.RefreshRect(wx.Rect(0, 0, w, h))
 		# self.m_scrolledWindow_image.Refresh()
 		self.Draw = False
-
+		self.paint_timer.Stop()
 
 	def on_motion(self, event):
 		self.src_point2 = event.GetPosition()
@@ -202,10 +221,12 @@ class Main(MainFrame):
 		self.point2 = pos
 		if not self.Draw:
 			return
-		self.drawing_object.add_line(point1=self.point1,point2=self.point2,preview=True)
+		self.drawing_object.add_line(
+			point1=self.point1, point2=self.point2, preview=True)
 		if self.point1:
-			rect = calculate_rect(self.src_point1,self.src_point2)
-			self.m_scrolledWindow_image.RefreshRect(rect)
+			rect = calculate_ext_rect(self.src_point1, self.src_point2)
+			# rect = calculate_rect(self.src_point1, self.src_point2)
+			# self.m_scrolledWindow_image.RefreshRect(rect)
 
 	def on_close(self, event):
 		self.Destroy()
@@ -217,7 +238,7 @@ class Main(MainFrame):
 		if fd.ShowModal() == wx.ID_OK:
 			filepath = fd.GetPath()
 			self.open_image(filepath)
-			
+
 	def on_save(self, event):
 		pass
 
