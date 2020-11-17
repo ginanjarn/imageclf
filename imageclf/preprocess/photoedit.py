@@ -108,6 +108,7 @@ class Main(MainFrame):
 
 		self.image = wx.Image()
 		self.image_bitmap = None
+		self.mem_dc = None
 		self.m_scrolledWindow_image.Bind(wx.EVT_PAINT, self.on_paint)
 
 		self.init_menu()
@@ -147,6 +148,19 @@ class Main(MainFrame):
 		self.Bind(wx.EVT_TIMER,self.on_update_timer ,self.paint_timer)
 
 	def on_update_timer(self,event):
+		w,h = self.image.GetSize()
+		# bitmap = wx.Bitmap(w,h)
+		# self.mem_dc = wx.MemoryDC(bitmap)
+		if self.mem_dc:
+			print("mem_dc available")
+		# self.mem_dc.DrawBitmap(self.image_bitmap, 0, 0)
+		# for line in self.line_stock:
+			# self.mem_dc.DrawLine(line[0], line[1])
+
+		# if not self.Draw:
+			# return
+		# self.mem_dc.DrawLine(self.point1, self.point2)
+
 		rect = calculate_ext_rect(self.src_point1, self.src_point2)
 		self.m_scrolledWindow_image.RefreshRect(rect)
 
@@ -156,6 +170,7 @@ class Main(MainFrame):
 				self.image.LoadFile(path, wx.BITMAP_TYPE_ANY)
 				self.image_bitmap = self.image.ConvertToBitmap()
 				imw, imh = self.image.GetSize()
+				self.mem_dc = wx.MemoryDC(self.image.ConvertToBitmap())
 				self.m_scrolledWindow_image.SetVirtualSize(imw, imh)
 				self.m_scrolledWindow_image.Refresh()
 
@@ -163,8 +178,9 @@ class Main(MainFrame):
 		filepath = self.m_genericDirCtrl_filebrowser.GetPath()
 		self.open_image(filepath)
 
-	def on_paint(self, event):
-		if not self.image_bitmap:
+	def on_paint(self, event):		
+		if not self.mem_dc:
+			print("no mem_dc")
 			return
 
 		dc = wx.PaintDC(self.m_scrolledWindow_image)
@@ -172,16 +188,17 @@ class Main(MainFrame):
 			return
 		self.paint_dc = dc
 		self.m_scrolledWindow_image.PrepareDC(dc)
-		dc.DrawBitmap(self.image_bitmap, 0, 0)
+		# dc.Blit(xdest, ydest, width, height, source, xsrc, ysrc)
+		dc.Blit(xdest=0, ydest=0, width=self.image.Width, height=self.image.Height, source=self.mem_dc, xsrc=0, ysrc=0)
+		# dc.DrawBitmap(self.image_bitmap, 0, 0)
 		# dc.DrawLine(wx.Point(12,10),wx.Point(70,100))
 		# dc.DrawLine(wx.Point(120,10),wx.Point(670,100))
-		for line in self.line_stock:
-			dc.DrawLine(line[0], line[1])
+		# for line in self.line_stock:
+			# dc.DrawLine(line[0], line[1])
 
 		if not self.Draw:
 			return
 		dc.DrawLine(self.point1, self.point2)
-		# self.DrawObject(dc)
 
 	def get_logical_position(self, event):
 		if self.paint_dc:
@@ -196,7 +213,7 @@ class Main(MainFrame):
 			return
 		self.point1 = pos
 		self.Draw = True
-		self.paint_timer.Start(20)
+		self.paint_timer.Start(25)
 
 	def on_left_up(self, event):
 		self.src_point2 = event.GetPosition()
@@ -210,6 +227,8 @@ class Main(MainFrame):
 		# w, h = self.m_scrolledWindow_image.GetSize()
 		# self.m_scrolledWindow_image.RefreshRect(wx.Rect(0, 0, w, h))
 		# self.m_scrolledWindow_image.Refresh()
+		if self.Draw:
+			self.mem_dc.DrawLine(self.point1,self.point2)
 		self.Draw = False
 		self.paint_timer.Stop()
 
