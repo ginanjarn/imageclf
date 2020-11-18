@@ -30,6 +30,7 @@ class Main(MainFrame):
 		super().__init__(parent)
 		self.init_dirbrowser()
 		self.init_imagehandler()
+		self.init_editing()
 
 	def init_imagehandler(self):
 		self.m_scrolledWindow_image.Bind(wx.EVT_PAINT, self.image_paint)
@@ -49,6 +50,16 @@ class Main(MainFrame):
 
 		self.Draw = False
 
+		self.object_list = []
+		self.temp_object_list = []
+
+	def UpdateMemoryDC(self):
+		# self.memoryDc.Clear()
+		for obj in self.object_list:
+			obj
+
+		self.m_scrolledWindow_image.Refresh()		
+
 	def get_logical_position(self,event):
 		if self.canvas:
 			return event.GetLogicalPosition(self.canvas)
@@ -64,6 +75,14 @@ class Main(MainFrame):
 	def on_leftup(self,event):
 		self.mouse_point2 = event.GetPosition()
 		self.logical_point2 = self.get_logical_position(event)
+
+		if self.Draw:
+			def draw():
+				self.memoryDc.SetBrush(wx.Brush(wx.Colour(0,0,0),style=wx.BRUSHSTYLE_TRANSPARENT))
+				self.memoryDc.SetPen(wx.Pen(wx.Colour(255,288,20),width=4))
+				self.memoryDc.DrawLine(self.logical_point1,self.logical_point2)
+			draw()
+			self.object_list.append(draw)
 
 		self.Draw = False
 
@@ -85,12 +104,12 @@ class Main(MainFrame):
 		dc.Blit(0, 0, BITMAP_WIDTH, BITMAP_HEIGHT, self.memoryDc, 0, 0)
 
 		if self.Draw:
-			print("on draw")
-			brush = wx.Brush(wx.Colour(0,0,0),style=wx.BRUSHSTYLE_TRANSPARENT)
-			dc.SetBrush(brush)
+			# print("on draw")
+			dc.SetBrush(wx.Brush(wx.Colour(0,0,0),style=wx.BRUSHSTYLE_TRANSPARENT))
+			dc.SetPen(wx.Pen(wx.Colour(255,288,20),width=4))
 			dc.DrawLine(self.logical_point1,self.logical_point2)
 			# dc.DrawRectangle(calculate_rect(self.logical_point1,self.logical_point2))
-			dc.DrawCircle(self.logical_point1,calculate_radius(self.logical_point1,self.logical_point2))
+			# dc.DrawCircle(self.logical_point1,calculate_radius(self.logical_point1,self.logical_point2))
 
 
 	def open_file(self,path):
@@ -104,14 +123,41 @@ class Main(MainFrame):
 		bitmap = wx.Bitmap(imw,imh)
 		self.memoryDc = wx.MemoryDC(bitmap)
 
-		self.memoryDc.DrawBitmap(self.image.ConvertToBitmap(),0,0)
+		# self.memoryDc.DrawBitmap(self.image.ConvertToBitmap(),0,0)
+		self.object_list.append(self.memoryDc.DrawBitmap(self.image.ConvertToBitmap(),0,0))
+
+		self.UpdateMemoryDC()
 
 		self.m_scrolledWindow_image.SetVirtualSize(imw,imh)
-		self.m_scrolledWindow_image.Refresh()
+		# self.m_scrolledWindow_image.Refresh()
 
 	def init_dirbrowser(self):
 		self.m_genericDirCtrl_filebrowser.SetPath(str(os.path.expanduser("~")))
 		self.Bind(wx.EVT_DIRCTRL_SELECTIONCHANGED,lambda e: self.open_file(self.m_genericDirCtrl_filebrowser.GetPath()),self.m_genericDirCtrl_filebrowser)
+
+	def init_editing(self):
+		self.Bind(wx.EVT_TOOL, self.on_undo, self.m_tool_undo)
+		self.Bind(wx.EVT_TOOL, self.on_redo, self.m_tool_redo)
+
+	def on_undo(self,event):
+		print("undo")
+		try:
+			self.temp_object_list.append(self.object_list.pop())
+			self.memoryDc.Clear()
+			self.UpdateMemoryDC()
+		except IndexError:
+			# disabel undo
+			pass
+
+	def on_redo(self,event):
+		print("redo")
+		try:
+			self.object_list.append(self.temp_object_list.pop())
+			self.memoryDc.Clear()
+			self.UpdateMemoryDC()
+		except IndexError:
+			# disable undo
+			pass
 
 
 if __name__ == '__main__':
