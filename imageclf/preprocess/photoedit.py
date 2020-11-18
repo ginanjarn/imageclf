@@ -25,6 +25,37 @@ def calculate_ext_rect(pt1: wx.Point, pt2: wx.Point, padding=20):
 	return wx.Rect(wx.Point(x, y), wx.Size(w, h))
 
 
+class DrawObject:
+	def __init__(self):
+		self.name = ""
+		self.point1: wx.Point = None
+		self.point2: wx.Point = None
+		self.radius:int = 0
+		self.size:wx.Size = None
+		self.bitmap:wx.Bitmap = None
+
+	def add_bitmap(self,p1,bitmap):
+		self.name="bitmap"
+		self.point1 = p1
+		self.bitmap = bitmap
+
+	def add_line(self,p1,p2):
+		self.name = "line"
+		self.point1 = p1
+		self.point2 = p2
+
+	def add_rect(self,p1,p2):
+		self.name = "rect"
+		self.point1 = p1
+		self.size = calculate_size(p1,p2)
+
+	def render(self,dc):
+		if self.name == "bitmap":
+			dc.DrawBitmap(self.bitmap,self.point1.x,self.point1.y)
+		elif self.name == "line":
+			dc.DrawLine(self.point1,self.point2)
+
+
 class Main(MainFrame):
 	def __init__(self, parent):
 		super().__init__(parent)
@@ -54,11 +85,18 @@ class Main(MainFrame):
 		self.temp_object_list = []
 
 	def UpdateMemoryDC(self):
-		# self.memoryDc.Clear()
-		for obj in self.object_list:
-			obj
+		imw,imh = self.image.GetSize()
 
-		self.m_scrolledWindow_image.Refresh()		
+		bitmap = wx.Bitmap(imw,imh)
+		self.memoryDc = wx.MemoryDC(bitmap)
+		# self.memoryDc.Clear()
+		count = 0
+		for obj in self.object_list:
+			obj.render(self.memoryDc)
+			print("draw obj %s"%count)
+			count+=1
+
+		self.m_scrolledWindow_image.Refresh(eraseBackground=False)		
 
 	def get_logical_position(self,event):
 		if self.canvas:
@@ -77,12 +115,17 @@ class Main(MainFrame):
 		self.logical_point2 = self.get_logical_position(event)
 
 		if self.Draw:
-			def draw():
-				self.memoryDc.SetBrush(wx.Brush(wx.Colour(0,0,0),style=wx.BRUSHSTYLE_TRANSPARENT))
-				self.memoryDc.SetPen(wx.Pen(wx.Colour(255,288,20),width=4))
-				self.memoryDc.DrawLine(self.logical_point1,self.logical_point2)
-			draw()
-			self.object_list.append(draw)
+			# def draw():
+			# 	self.memoryDc.SetBrush(wx.Brush(wx.Colour(0,0,0),style=wx.BRUSHSTYLE_TRANSPARENT))
+			# 	self.memoryDc.SetPen(wx.Pen(wx.Colour(255,288,20),width=4))
+			# 	self.memoryDc.DrawLine(self.logical_point1,self.logical_point2)
+			# draw()
+			# self.object_list.append(draw)
+			do = DrawObject()
+			do.add_line(self.logical_point1,self.logical_point2)
+			self.object_list.append(do)
+			self.UpdateMemoryDC()
+
 
 		self.Draw = False
 
@@ -106,7 +149,7 @@ class Main(MainFrame):
 		if self.Draw:
 			# print("on draw")
 			dc.SetBrush(wx.Brush(wx.Colour(0,0,0),style=wx.BRUSHSTYLE_TRANSPARENT))
-			dc.SetPen(wx.Pen(wx.Colour(255,288,20),width=4))
+			# dc.SetPen(wx.Pen(wx.Colour(255,288,20),width=4))
 			dc.DrawLine(self.logical_point1,self.logical_point2)
 			# dc.DrawRectangle(calculate_rect(self.logical_point1,self.logical_point2))
 			# dc.DrawCircle(self.logical_point1,calculate_radius(self.logical_point1,self.logical_point2))
@@ -119,12 +162,16 @@ class Main(MainFrame):
 			return
 		self.image.LoadFile(path)
 		imw,imh = self.image.GetSize()
+		self.object_list.clear()
 
-		bitmap = wx.Bitmap(imw,imh)
-		self.memoryDc = wx.MemoryDC(bitmap)
+		# bitmap = wx.Bitmap(imw,imh)
+		# self.memoryDc = wx.MemoryDC(bitmap)
 
 		# self.memoryDc.DrawBitmap(self.image.ConvertToBitmap(),0,0)
-		self.object_list.append(self.memoryDc.DrawBitmap(self.image.ConvertToBitmap(),0,0))
+		# self.object_list.append(self.memoryDc.DrawBitmap(self.image.ConvertToBitmap(),0,0))
+		do = DrawObject()
+		do.add_bitmap(wx.Point(0,0),self.image.ConvertToBitmap())
+		self.object_list.append(do)
 
 		self.UpdateMemoryDC()
 
@@ -143,7 +190,6 @@ class Main(MainFrame):
 		print("undo")
 		try:
 			self.temp_object_list.append(self.object_list.pop())
-			self.memoryDc.Clear()
 			self.UpdateMemoryDC()
 		except IndexError:
 			# disabel undo
@@ -153,7 +199,6 @@ class Main(MainFrame):
 		print("redo")
 		try:
 			self.object_list.append(self.temp_object_list.pop())
-			self.memoryDc.Clear()
 			self.UpdateMemoryDC()
 		except IndexError:
 			# disable undo
