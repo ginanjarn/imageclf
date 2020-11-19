@@ -1,5 +1,6 @@
-from generated.wxui import MainFrame
+from generated.wxui import MainFrame, ColorPanel
 import wx
+import wx.aui as aui
 import os
 import math
 from pathlib import Path
@@ -62,6 +63,40 @@ class Main(MainFrame):
 		self.init_dirbrowser()
 		self.init_imagehandler()
 		self.init_editing()
+		self.init_aui()
+
+		self.Bind(wx.EVT_CLOSE,self.OnClose)
+
+	def init_aui(self):
+		self._mgr = aui.AuiManager(self)
+		minfo = aui.AuiPaneInfo().CaptionVisible(False).CloseButton(False).Center()
+		self._mgr.AddPane(self.m_splitter1,minfo)
+		self.m_toolBar1 = wx.ToolBar(self, -1, wx.DefaultPosition, wx.DefaultSize,
+						 wx.TB_FLAT | wx.TB_NODIVIDER)
+		bitmap = wx.Bitmap()
+		bitmap.LoadFile(str(os.path.join("generated","res","icon","baseline_photo_size_select_large_black_24dp.png")))
+		self.m_toolBar1.AddTool(101, "Test", bitmap)
+
+		self.m_tool_open = self.m_toolBar1.AddLabelTool( wx.ID_ANY, u"open", wx.ArtProvider.GetBitmap( wx.ART_FILE_OPEN, wx.ART_TOOLBAR ), wx.NullBitmap, wx.ITEM_NORMAL, wx.EmptyString, wx.EmptyString, None )
+
+		self.m_tool_save = self.m_toolBar1.AddLabelTool( wx.ID_ANY, u"save", wx.ArtProvider.GetBitmap( wx.ART_FILE_SAVE, wx.ART_TOOLBAR ), wx.NullBitmap, wx.ITEM_NORMAL, wx.EmptyString, wx.EmptyString, None )
+
+		self.m_toolBar1.AddSeparator()
+
+		self.m_tool_undo = self.m_toolBar1.AddLabelTool( wx.ID_ANY, u"undo", wx.ArtProvider.GetBitmap( wx.ART_UNDO, wx.ART_TOOLBAR ), wx.NullBitmap, wx.ITEM_NORMAL, wx.EmptyString, wx.EmptyString, None )
+
+		self.m_tool_redo = self.m_toolBar1.AddLabelTool( wx.ID_ANY, u"redo", wx.ArtProvider.GetBitmap( wx.ART_REDO, wx.ART_TOOLBAR ), wx.NullBitmap, wx.ITEM_NORMAL, wx.EmptyString, wx.EmptyString, None )
+
+		self.m_toolBar1.Realize()
+		minfo = aui.AuiPaneInfo().ToolbarPane().RightDockable(False).LeftDockable(False).Top()
+		self._mgr.AddPane(self.m_toolBar1,minfo)
+		self._mgr.AddPane(ColorPanel(self),aui.AuiPaneInfo().BottomDockable(False).TopDockable(False).Right())
+		self._mgr.Update()
+
+	def OnClose(self,event):
+		self._mgr.UnInit()
+		del self._mgr
+		self.Destroy()
 
 	def init_imagehandler(self):
 		self.m_scrolledWindow_image.Bind(wx.EVT_PAINT, self.image_paint)
@@ -85,6 +120,9 @@ class Main(MainFrame):
 		self.temp_object_list = []
 
 	def UpdateMemoryDC(self):
+		if not self.image:
+			return
+
 		imw,imh = self.image.GetSize()
 
 		bitmap = wx.Bitmap(imw,imh)
@@ -183,8 +221,9 @@ class Main(MainFrame):
 		self.Bind(wx.EVT_DIRCTRL_SELECTIONCHANGED,lambda e: self.open_file(self.m_genericDirCtrl_filebrowser.GetPath()),self.m_genericDirCtrl_filebrowser)
 
 	def init_editing(self):
-		self.Bind(wx.EVT_TOOL, self.on_undo, self.m_tool_undo)
-		self.Bind(wx.EVT_TOOL, self.on_redo, self.m_tool_redo)
+		# self.Bind(wx.EVT_TOOL, self.on_undo, self.m_tool_undo)
+		# self.Bind(wx.EVT_TOOL, self.on_redo, self.m_tool_redo)
+		pass
 
 	def on_undo(self,event):
 		print("undo")

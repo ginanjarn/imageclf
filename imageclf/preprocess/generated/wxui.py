@@ -106,19 +106,6 @@ class MainFrame ( wx.Frame ):
 		self.SetSizer( bSizer1 )
 		self.Layout()
 		self.m_statusBar1 = self.CreateStatusBar( 1, wx.STB_SIZEGRIP, wx.ID_ANY )
-		self.m_toolBar1 = self.CreateToolBar( wx.TB_HORIZONTAL, wx.ID_ANY )
-		self.m_tool_open = self.m_toolBar1.AddLabelTool( wx.ID_ANY, u"open", wx.ArtProvider.GetBitmap( wx.ART_FILE_OPEN, wx.ART_TOOLBAR ), wx.NullBitmap, wx.ITEM_NORMAL, wx.EmptyString, wx.EmptyString, None )
-
-		self.m_tool_save = self.m_toolBar1.AddLabelTool( wx.ID_ANY, u"save", wx.ArtProvider.GetBitmap( wx.ART_FILE_SAVE, wx.ART_TOOLBAR ), wx.NullBitmap, wx.ITEM_NORMAL, wx.EmptyString, wx.EmptyString, None )
-
-		self.m_toolBar1.AddSeparator()
-
-		self.m_tool_undo = self.m_toolBar1.AddLabelTool( wx.ID_ANY, u"undo", wx.ArtProvider.GetBitmap( wx.ART_UNDO, wx.ART_TOOLBAR ), wx.NullBitmap, wx.ITEM_NORMAL, wx.EmptyString, wx.EmptyString, None )
-
-		self.m_tool_redo = self.m_toolBar1.AddLabelTool( wx.ID_ANY, u"redo", wx.ArtProvider.GetBitmap( wx.ART_REDO, wx.ART_TOOLBAR ), wx.NullBitmap, wx.ITEM_NORMAL, wx.EmptyString, wx.EmptyString, None )
-
-		self.m_toolBar1.Realize()
-
 
 		self.Centre( wx.BOTH )
 
